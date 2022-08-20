@@ -1,3 +1,8 @@
+#[
+    Original author: ZimaWhit3, https://github.com/zimawhit3
+    License: BSD 3-Clause
+]#
+
 import winim/lean as winimport
 
     #[
