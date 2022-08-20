@@ -20,7 +20,7 @@ Using x64dbg, we can see that NtWriteVirtualMemory is hooked (using BitDefender 
 
 If we use the "classic" Hell's Gate implementation, it won't work:
 
-![failed](img/failed.png)
+![failed](img/fail.png)
 
 I modified the code to use Sektor7's Halo's Gate technique to search for unhooked neighbours:
 
