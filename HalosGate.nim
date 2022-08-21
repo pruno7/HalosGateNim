@@ -187,7 +187,7 @@ when isMainModule:
         0x65,0x00]
 
         if paramCount() != 0:
-            echo fmt"[!] Usage: .\Hellsgate.exe"
+            echo fmt"[!] Usage: .\HalosGate.exe"
         else:
             var 
                 funcHash        : uint64            = djb2_hash("NtAllocateVirtualMemory")
