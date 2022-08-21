@@ -1,6 +1,6 @@
-# HalosGateNim
+# TartarusGateNim
 
-A quick example of the Halo's Gate technique in Nim
+A quick example of the Tartarus Gate technique in Nim
 
 Modified my code from my [Halo's Gate technique](https://github.com/pruno7/NimGates/tree/HalosGateNim) and added [trickster0's Tartarus Gate technique](https://github.com/trickster0/TartarusGate)
 
